@@ -11,24 +11,28 @@ import {
 } from "@chakra-ui/react";
 import { useCopy } from "@/hooks/useCopy";
 import { getAddressFromLocal } from "@/utils/tool";
+import Link from "next/link";
 
 // import {Toast} from '@chakra-ui/toast'
+
+interface Addr {
+  wallet: string;
+  address: string;
+}
 
 export default function WalletHome() {
   // const { useToast } = toaster
   //   const toast = useToast()
-
-  const toast = useToast();
+  const [addrList, setAddrList] = useState<Array<Addr>>([])
   const { copy } = useCopy();
-  const [address, setAddress] = useState("");
 
   useEffect(() => {
-    const addr = getAddressFromLocal();
-    if (!addr) return alert("账户不存在");
-    setAddress(addr);
+    const addrList = getAddressFromLocal();
+    if (!addrList || !addrList.length) return alert("账户不存在");
+    setAddrList(addrList);
   }, []);
 
-  const copyAddress = () => {
+  const copyAddress = (address: string) => {
     if (address) {
       copy(address);
       alert("拷贝成功");
@@ -40,13 +44,19 @@ export default function WalletHome() {
   return (
     <Container>
       <Box>
-        <Text>我的钱包</Text>
-        <Flex align={"center"}>
-          <Text>{address}</Text>
-          <Btn cursor={"pointer"} ml="10px" onClick={copyAddress}>
-            拷贝
-          </Btn>
+        <Flex justify="space-between" align="center">
+          <Text fontSize="16px" fontWeight="600">我的钱包</Text>
+          <Link href="/Registry">创建新钱包</Link>
         </Flex>
+        {addrList.length? addrList.map((item) => (<Box>
+          <Box>{item.wallet}</Box>
+          <Flex align="center">
+            <Text>{item.address}</Text>
+            <Btn cursor={"pointer"} ml="10px" onClick={() => copyAddress(item.address)}>
+              拷贝
+            </Btn>
+          </Flex>
+        </Box>))  : <Text>暂无账户</Text>}
       </Box>
     </Container>
   );

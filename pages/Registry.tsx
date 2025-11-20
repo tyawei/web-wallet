@@ -35,7 +35,7 @@ export default function Registry() {
     const walletManager = WalletManager.getInstance();
     const walletInfo = reset
       ? walletManager.getWalletInfo()
-      : walletManager.createWalletAndMnemonic();
+      : walletManager.createWalletAndMnemonic(password);
 
     console.log("walletInfo==", walletInfo);
 
@@ -43,7 +43,7 @@ export default function Registry() {
       // address/privateKey/mnemonic
       //  展示助记词Modal、调用加密私钥并保存方法、index.tsx页面需要判断local是否有信息
       !reset && setMnemonic(walletInfo.mnemonic);
-      walletManager.encryptPKeyAndSaveLocal(password);
+      // walletManager.encryptPKeyAndSaveLocal(password);
 
       if (reset) {
         alert("重置成功！");
@@ -61,7 +61,7 @@ export default function Registry() {
   const downloadEncryptKey = () => {
     const key = localStorage.getItem(KEY) || ""
     if (!key) return alert("文件不存在");
-    downloadJSONFile(key, "walletEncryptPrivateKey.json")
+    downloadJSONFile(key, (`walletEncryptPrivateKey_${new Date().toLocaleString()}.json`).replace(" ", ""))
   };
 
   return (

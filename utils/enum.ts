@@ -7,4 +7,5 @@ export enum LOGINTYPE {
 export enum SAVELOCALKEY {
     KEY = "encryptoKey",
     ADDRESS = "address",
+    WALLETNAME = "wallet",
 }

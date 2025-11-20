@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 import { SAVELOCALKEY } from './enum'
-import { setAddressInLocal } from './tool';
+import { saveEncryptoKeyInLocal } from './tool';
 
 interface WalletInfo {
     address: string;
@@ -36,7 +36,7 @@ export default class WalletManager {
         this.walletInfo = { ...info }
     }
 
-    createWalletAndMnemonic() {
+    createWalletAndMnemonic(password: string) {
         // wallet.address
         // wallet.privateKey
         // wallet.mnemonic
@@ -51,7 +51,8 @@ export default class WalletManager {
             privateKey,
             mnemonic: mnemonic?.phrase,
         })
-        localStorage.setItem(ADDRESS,  address)
+        // localStorage.setItem(ADDRESS,  address)
+        this.encryptPKeyAndSaveLocal(password)
         return this.walletInfo
     }
 
@@ -64,15 +65,25 @@ export default class WalletManager {
 
             console.log("encryptKey==", keyJSON, "; rawKey==", this.wallet.privateKey)
 
-            localStorage.setItem(KEY, keyJSON)
+            // localStorage.setItem(KEY, keyJSON)
+            saveEncryptoKeyInLocal(this.wallet.address, keyJSON)
             return keyJSON
         }
     }
 
-    async decryptPrivateKey(keyJSON: string, password: string, recoverWalletFromBackUp: boolean = false) {
-        keyJSON = keyJSON || (localStorage.getItem(KEY) || "")
+    // wallet.encrypt(password) 每次使用相同的password加密后，encryptedJson会改变
+    // 但是，即使会改变，使用原来的密码同样能够正确解密。所以每次使用密码来登录解密出钱包，不必更新已保存的加密私钥数据
+    async decryptPrivateKey(encryptoKey: string, password: string, recoverWalletFromBackUp: boolean = false) {
+        encryptoKey = encryptoKey || (localStorage.getItem(KEY) || "[]")
         try  {
-            const wallet = await ethers.Wallet.fromEncryptedJson(keyJSON, password)
+            const encryptKeyList = JSON.parse(encryptoKey)
+
+            const encryptKeyPromises = encryptKeyList.map((itm: string) => ethers.Wallet.fromEncryptedJson(itm[KEY], password))
+
+            const wallet = (await Promise.race(encryptKeyPromises)) as ethers.Wallet | ethers.HDNodeWallet
+            console.log('解密某个钱包=', wallet)
+
+            // const wallet = await ethers.Wallet.fromEncryptedJson(encryptoKey, password)
             this.setWalletInfo({
                 address: wallet.address,
                 mnemonic: wallet.mnemonic?.phrase,
@@ -80,12 +91,12 @@ export default class WalletManager {
             })
 
             // 如果是结合备份的加密私钥文件找回钱包，需要重新保存在本地
-            recoverWalletFromBackUp && localStorage.setItem(KEY, keyJSON);
+            recoverWalletFromBackUp && localStorage.setItem(KEY, encryptoKey);
 
-            localStorage.setItem(ADDRESS, wallet.address)
+            // localStorage.setItem(ADDRESS, wallet.address)
             return wallet
         } catch(e) {
-            console.log(e)
+            console.log("解密失败=",e)
             return null
         }
     }
@@ -99,7 +110,7 @@ export default class WalletManager {
                 const {address, mnemonic, privateKey,} = wallet
 
                 this.setWalletInfo({address, mnemonic: mnemonic?.phrase, privateKey,})
-                setAddressInLocal(address)
+                // setAddressInLocal(address)
 
                 return this.walletInfo;
             }

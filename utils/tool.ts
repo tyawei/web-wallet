@@ -1,13 +1,53 @@
 import WalletManager from "./WalletManager";
 import { SAVELOCALKEY } from "./enum";
 
-const {ADDRESS,} = SAVELOCALKEY
+const {KEY, ADDRESS, WALLETNAME,} = SAVELOCALKEY
 
 export const getAddressFromLocal = () => {
-    return localStorage.getItem(ADDRESS)
+    const encryptKey = localStorage.getItem(KEY) || "[]"
+    let addressList: any = []
+    try {
+        const encryptKeyList = JSON.parse(encryptKey) as Array<object>
+        if (encryptKey.length) {
+            addressList = encryptKeyList.map((item: any) => ({wallet: item.wallet, address: item.address}))
+        }
+        return addressList
+    } catch(e) {
+        console.log("getAddressFromLocal=>", e)
+    }
 }
-export const setAddressInLocal = (address: string) => {
-    localStorage.setItem(ADDRESS, address)
+// export const setAddressInLocal = (address: string) => {
+//     localStorage.setItem(ADDRESS, address)
+// }
+
+// 添加加密私钥文件
+// 格式： [{address: "0x....", encryptoKey: jsonstring...}]
+export const saveEncryptoKeyInLocal = (address: string, encryptoKey: string) => {
+    let savedKeyList = localStorage.getItem(KEY) || "[]"
+    try {
+        let parseList = (JSON.parse(savedKeyList)) as Array<{[ADDRESS]: string, [KEY]: string, [WALLETNAME]: string}>
+        if (!parseList.length) {
+            localStorage.setItem(KEY, JSON.stringify([{
+                [ADDRESS]: address, 
+                [KEY]: encryptoKey,
+                [WALLETNAME]: WALLETNAME+1
+            }]))
+            // return JSON.stringify([{
+            //     [ADDRESS]: address, 
+            //     [KEY]: encryptoKey
+            // }])
+        } else {
+            parseList.push({
+                [ADDRESS]: address, 
+                [KEY]: encryptoKey,
+                [WALLETNAME]: WALLETNAME+(parseList.length+1)
+            })
+            localStorage.setItem(KEY, JSON.stringify(parseList))
+            // return JSON.stringify(parseList)
+        }
+    } catch(e) {
+        console.log("parse savedKeyList failed!")
+    }
 }
 
 export const downloadJSONFile = (
