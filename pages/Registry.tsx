@@ -43,7 +43,8 @@ export default function Registry() {
       // address/privateKey/mnemonic
       //  展示助记词Modal、调用加密私钥并保存方法、index.tsx页面需要判断local是否有信息
       !reset && setMnemonic(walletInfo.mnemonic);
-      // walletManager.encryptPKeyAndSaveLocal(password);
+      // 使用助记词登录，并选择重置密码时，需要调用保存加密私钥方法，否则本地就没有私钥文件
+      reset && walletManager.encryptPKeyAndSaveLocal(password);
 
       if (reset) {
         alert("重置成功！");

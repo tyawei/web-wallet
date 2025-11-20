@@ -75,30 +75,39 @@ export default class WalletManager {
     // 但是，即使会改变，使用原来的密码同样能够正确解密。所以每次使用密码来登录解密出钱包，不必更新已保存的加密私钥数据
     async decryptPrivateKey(encryptoKey: string, password: string, recoverWalletFromBackUp: boolean = false) {
         encryptoKey = encryptoKey || (localStorage.getItem(KEY) || "[]")
-        try  {
-            const encryptKeyList = JSON.parse(encryptoKey)
+        let wallet
 
-            const encryptKeyPromises = encryptKeyList.map((itm: string) => ethers.Wallet.fromEncryptedJson(itm[KEY], password))
+        const encryptKeyList = JSON.parse(encryptoKey)
 
-            const wallet = (await Promise.race(encryptKeyPromises)) as ethers.Wallet | ethers.HDNodeWallet
-            console.log('解密某个钱包=', wallet)
-
-            // const wallet = await ethers.Wallet.fromEncryptedJson(encryptoKey, password)
-            this.setWalletInfo({
-                address: wallet.address,
-                mnemonic: wallet.mnemonic?.phrase,
-                // ...wallet,
-            })
-
-            // 如果是结合备份的加密私钥文件找回钱包，需要重新保存在本地
-            recoverWalletFromBackUp && localStorage.setItem(KEY, encryptoKey);
-
-            // localStorage.setItem(ADDRESS, wallet.address)
-            return wallet
-        } catch(e) {
-            console.log("解密失败=",e)
-            return null
+        for (let i = 0; i < encryptKeyList.length; i++) {
+            try {
+                wallet = await ethers.Wallet.fromEncryptedJson(encryptKeyList[i][KEY], password)
+                if (wallet) break;
+            }catch(e) {
+                console.log("ee===", e)
+                // 这里需要继续，否则捕获到错误后，wallet就会返回空，提示解密不成功
+                continue;
+            }
         }
+
+        // const encryptKeyPromises = encryptKeyList.map((itm: string) => ethers.Wallet.fromEncryptedJson(itm[KEY], password))
+        // 使用race当有多个钱包promise，一旦有password不正确的某个钱包key，就会抛出错误，导致另一个本来可以被password解密的钱包没有解出来
+        // 因此，采用for循环 || null，在捕获到错误后继续循环，直到有wallet值为止
+        // const wallet = (await Promise.race(encryptKeyPromises)) as ethers.Wallet | ethers.HDNodeWallet
+
+        if (!wallet) return null
+
+        // const wallet = await ethers.Wallet.fromEncryptedJson(encryptoKey, password)
+        this.setWalletInfo({
+            address: wallet.address,
+            mnemonic: wallet.mnemonic?.phrase,
+            // ...wallet,
+        })
+
+        // 如果是结合备份的加密私钥文件找回钱包，需要重新保存在本地
+        recoverWalletFromBackUp && localStorage.setItem(KEY, encryptoKey);
+
+        return wallet
     }
 
     recoverWalletFromMnemonic(phrase: string, path = "m/44'/60'/0'/0/0") {
@@ -110,7 +119,9 @@ export default class WalletManager {
                 const {address, mnemonic, privateKey,} = wallet
 
                 this.setWalletInfo({address, mnemonic: mnemonic?.phrase, privateKey,})
-                // setAddressInLocal(address)
+
+                // 从助记词恢复，就没有加密私钥文件
+                saveEncryptoKeyInLocal(address, "")
 
                 return this.walletInfo;
             }

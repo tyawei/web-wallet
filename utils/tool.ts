@@ -37,11 +37,21 @@ export const saveEncryptoKeyInLocal = (address: string, encryptoKey: string) => 
             //     [KEY]: encryptoKey
             // }])
         } else {
-            parseList.push({
-                [ADDRESS]: address, 
-                [KEY]: encryptoKey,
-                [WALLETNAME]: WALLETNAME+(parseList.length+1)
-            })
+            let repeatIdx = -1
+            const repeatItem = parseList.filter((item, idx) => {
+                const flag = item[ADDRESS] === address
+                if (flag) repeatIdx = idx;
+                return flag
+            })[0]
+            if (repeatItem) {
+                parseList[repeatIdx] = {...repeatItem, [KEY]: encryptoKey} 
+            } else {
+                parseList.push({
+                    [ADDRESS]: address, 
+                    [KEY]: encryptoKey,
+                    [WALLETNAME]: WALLETNAME+(parseList.length+1)
+                })
+            }
             localStorage.setItem(KEY, JSON.stringify(parseList))
             // return JSON.stringify(parseList)
         }

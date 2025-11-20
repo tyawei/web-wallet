@@ -48,7 +48,7 @@ export default function WalletHome() {
           <Text fontSize="16px" fontWeight="600">我的钱包</Text>
           <Link href="/Registry">创建新钱包</Link>
         </Flex>
-        {addrList.length? addrList.map((item) => (<Box>
+        {addrList.length? addrList.map((item) => (<Box key={item.address}>
           <Box>{item.wallet}</Box>
           <Flex align="center">
             <Text>{item.address}</Text>
