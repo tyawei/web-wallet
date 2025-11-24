@@ -100,3 +100,16 @@ export const getUploadFileText = (file: Blob) => {
         }
     })
 }
+
+interface ITextEllipsisOptions {
+    preDigits?: number
+    endDigits?: number
+}
+
+export const textEllipsis = (text: string, option?: ITextEllipsisOptions) => {
+    const { preDigits = 2, endDigits = 4 } = option || {}
+    if (!text) return
+    if (text.length <= preDigits + endDigits) return text
+    return text.substring(0, preDigits) + '...' + text.substring(text.length - endDigits)
+}
+  
