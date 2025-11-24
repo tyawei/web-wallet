@@ -9,7 +9,7 @@ interface IProps extends ChakraProviderProps {
 
 export default React.memo(function Container(props: IProps) {
     return <Cnt {...props}>
-        {props.hiddenHomeBtn ? null : <Box pos="absolute" top="10px" left="10px"><Link href="/">回到首页(临时)</Link></Box>}
+        {props.hiddenHomeBtn ? null : <Box pos="absolute" top="10px" left="10px"><Link href="/">回到首页</Link></Box>}
         {props.children}
     </Cnt>
 })

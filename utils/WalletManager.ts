@@ -171,9 +171,9 @@ export default class WalletManager {
     return config;
   }
 
-  async getBalance() {
-    if (this.provider && this.wallet) {
-      const balance = await this.provider.getBalance(this.wallet.address);
+  async getBalance(address: string) {
+    if (this.provider && (address || this.wallet.address)) {
+      const balance = await this.provider.getBalance(address || this.wallet.address);
       return ethers.formatEther(balance);
     }
     return "0.0";

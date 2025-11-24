@@ -11,7 +11,7 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { useCopy } from "@/hooks/useCopy";
-import { getAddressFromLocal } from "@/utils/tool";
+import { getWalletsFromLocal } from "@/utils/tool";
 import Link from "next/link";
 import { testnetConfigs } from "@/config/test";
 import WalletManager from "@/utils/WalletManager";
@@ -19,7 +19,8 @@ import { textEllipsis } from "@/utils/tool";
 import Modal from "@/components/Modal";
 import Loading from "@/components/Loading";
 import { showResult } from "@/components/ShowResult";
-
+import TriangleIcon from "@/components/TriangleIcon";
+import { SAVELOCALKEY } from "@/utils/enum";
 
 interface Addr {
   wallet: string;
@@ -28,42 +29,52 @@ interface Addr {
 }
 
 export default function WalletHome() {
-  const [addrList, setAddrList] = useState<Array<Addr>>([])
+  const [walletList, setWalletList] = useState<Array<Addr>>([])
   const [curWalletInfo, setCurWalletInfo] = useState<Addr>({} as Addr)
   const [balance, setBalance] = useState("")
   const [receiveAddr, setReceiveAddr] = useState("")
   const [sendAmount, setSendAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isShow, setIsShow] = useState(false)
 
   const { copy } = useCopy();
   const { isOpen, onClose, onOpen } = useDisclosure()
-  const walletManager = WalletManager.getInstance()
 
+  const walletManager = WalletManager.getInstance()
+  // 当前最先登录过的钱包，和其他钱包区分开 ，当切换到其他钱包并即将交易时，用来判断是否输入密码
+  const curAddress = walletManager.getWalletInfo()?.address
+  // 0xe3ff...23neik格式
+  const ellipsisAddr = useMemo(() => {
+    return textEllipsis(curWalletInfo?.address || "", {
+      preDigits: 6,
+      endDigits: 6,
+    })
+  }, [curWalletInfo.address])
+  // 钱包名称
+  const curWallet = useMemo(() => {
+    return curWalletInfo?.wallet
+  }, [curWalletInfo.address, curWalletInfo.wallet])  
 
   useEffect(() => {
-    const addrList = getAddressFromLocal();
-    if (!addrList || !addrList.length) return alert("账户不存在");
-    setAddrList(addrList);
+    const walletList = getWalletsFromLocal();
+    if (!walletList || !walletList.length) return alert("账户不存在");
+    setWalletList(walletList);
 
-    const curAddress = walletManager.getWalletInfo()?.address
-    const curWallet = addrList.filter((item: Addr) => item.address === curAddress) 
+    const curWallet = walletList.filter((item: Addr) => item.address === curAddress) 
     setCurWalletInfo(curWallet[0])
+  }, [])
 
-    const connectBalance = async () => {
+  // 连接钱包并获取余额
+  useEffect(() => {
+    const connectAndBalance = async () => {
       // 默认sepolia参数
       await walletManager.connectToTestnet()
 
-      const balance = await walletManager.getBalance()
-      console.log("balance==", balance)
+      const balance = await walletManager.getBalance(curWalletInfo.address)
       setBalance(balance)
     }
-    connectBalance()
-
-  }, []);
-
-  const curWallet = useMemo(() => {
-    return curWalletInfo?.wallet
-  }, [curWalletInfo])
+    connectAndBalance()
+  }, [curWalletInfo.address]);
 
   const copyAddress = (address: string | undefined) => {
     if (address) {
@@ -74,24 +85,37 @@ export default function WalletHome() {
     }
   };
 
+  // 转账交易
   const sendTransaction = async () => {
     const isValidAddr = walletManager.isValidAddress(receiveAddr)
     if (!isValidAddr) return alert("输入地址不正确")
     if (!sendAmount.trim() || isNaN(Number(sendAmount)) ) return alert("请输入正确的数字")
 
+    if (curWalletInfo.address !== curAddress && ellipsisAddr) {
+      const password = await promptForPassword(ellipsisAddr)
+      const encryptoKey = localStorage.getItem(SAVELOCALKEY.KEY) || ""
+
+      // 非首次登录的钱包，将其wallet对象在walletManager对象中保存下来，用于交易
+      await walletManager.decryptPrivateKey(encryptoKey, password)
+    }
     setIsLoading(true)
 
     try {
       const transaction: any = await walletManager.sendTransaction(receiveAddr, sendAmount)
-      setIsLoading(false)
 
       if (transaction && transaction.hash) {
+        // 需要先确认交易状态，然后获取余额，否则余额可能不会更新
+        const receipt = await transaction.wait();
+        console.log("交易已确认:blockNumber=", receipt.blockNumber)
+        
+        setIsLoading(false)
         alert("发送成功")
         onClose()
 
-        const balance = await walletManager.getBalance()
+        const balance = await walletManager.getBalance(curWalletInfo.address)
         setBalance(balance)
       } else {
+        setIsLoading(false)
         alert("发送失败")
       }
     } catch(e) {
@@ -99,6 +123,23 @@ export default function WalletHome() {
       setIsLoading(false)
       showResult(false, JSON.stringify(e))
     }
+  }
+
+  const promptForPassword = (address: string): Promise<string> => {
+    return new Promise((resolve) => {
+      // 如果 当前选中钱包不是 登录钱包，需要额外确认密码
+      const password = window.prompt(`请输入钱包${address}的密码`);
+      
+
+
+      resolve(password || '');
+    });
+  }
+
+  const selectWallet = (address: string) => {
+    const curWallet = walletList.filter((item: Addr) => item.address === address) 
+    setCurWalletInfo(curWallet[0])
+    setIsShow(false)
   }
 
   return (
@@ -113,12 +154,10 @@ export default function WalletHome() {
               curWallet ? 
               <>
                 <Text>{curWallet}</Text>
-                <Text mx="10px">
-                  ({textEllipsis(curWalletInfo?.address || "", {
-                    preDigits: 6,
-                    endDigits: 6,
-                  })})
-                </Text>
+                <Text mx="10px">({ellipsisAddr})</Text>
+                <Box mt="-7px">
+                  <TriangleIcon isShow={isShow} onClick={() => setIsShow(!isShow)} />
+                </Box>
                 <Btn w="50px" h="30px" cursor={"pointer"} ml="10px" onClick={() => copyAddress(curWalletInfo?.address)}>
                   拷贝
                 </Btn>
@@ -128,18 +167,6 @@ export default function WalletHome() {
           
           {curWallet ? <Btn w="50px" h="30px" onClick={onOpen}>发送</Btn> : null}
         </Flex>
-
-        
-
-        {/* {addrList.length? addrList.map((item) => (<Box key={item.address}>
-          <Box>{item.wallet}</Box>
-          <Flex align="center">
-            <Text>{item.address}</Text>
-            <Btn cursor={"pointer"} ml="10px" onClick={() => copyAddress(item.address)}>
-              拷贝
-            </Btn>
-          </Flex>
-        </Box>))  : <Text>暂无账户</Text>} */}
 
         <Box>
           { Object.values(testnetConfigs).map((item, idx) => {
@@ -156,6 +183,7 @@ export default function WalletHome() {
           }
         </Box>
       </Box>
+      
       <Modal isOpen={isOpen} onClose={onClose} headerTitle="发送交易" containerStyle={{width: "620px", height: "300px"}}>
         <Box>
           <FlexItem>
@@ -169,6 +197,20 @@ export default function WalletHome() {
           <Btn w="100%" h="48px" mt="20px" onClick={sendTransaction}>确定</Btn>
         </Box>
       </Modal>
+
+      <Modal isOpen={isShow} onClose={() => setIsShow(false)} headerTitle="选择钱包" containerStyle={{width: "500px", height: "300px"}}>
+      {walletList.length? walletList.map(({address, wallet}) => (
+        <Flex key={address} cursor={"pointer"} justifyContent={"center"}
+              bgColor={address === curWalletInfo.address ? "#eee" : "none"}
+              borderRadius="6px"
+              onClick={() => selectWallet(address)}
+              >
+          <Text fontWeight={600}>{wallet}：</Text>
+          <Text>{address}</Text>
+        </Flex>
+        ))  : <Text>暂无钱包</Text>}          
+      </Modal>
+      
       <Loading visible={isLoading} />
     </Container>
   );

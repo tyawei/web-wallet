@@ -3,17 +3,17 @@ import { SAVELOCALKEY } from "./enum";
 
 const {KEY, ADDRESS, WALLETNAME,} = SAVELOCALKEY
 
-export const getAddressFromLocal = () => {
+export const getWalletsFromLocal = () => {
     const encryptKey = localStorage.getItem(KEY) || "[]"
-    let addressList: any = []
+    // let addressList: any = []
     try {
-        const encryptKeyList = JSON.parse(encryptKey) as Array<object>
-        if (encryptKey.length) {
-            addressList = encryptKeyList.map((item: any) => ({wallet: item.wallet, address: item.address}))
-        }
-        return addressList
+        const encryptKeyList = JSON.parse(encryptKey) as Array<any>
+        // if (encryptKey.length) {
+        //     addressList = encryptKeyList.map((item: any) => ({wallet: item.wallet, address: item.address}))
+        // }
+        return encryptKeyList
     } catch(e) {
-        console.log("getAddressFromLocal=>", e)
+        console.log("getWalletsFromLocal=>", e)
     }
 }
 // export const setAddressInLocal = (address: string) => {
