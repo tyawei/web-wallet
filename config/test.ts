@@ -9,7 +9,7 @@ export const testnetConfigs = {
     // rpcUrl: 'https://sepolia.infura.io/v3/'+PROJECT_ID,
     rpcUrl: "https://1rpc.io/sepolia",
     explorer: 'https://sepolia.etherscan.io',
-    iconUrl: "https://rainlink.co/_next/static/media/eth.5aaa3207.png",
+    iconUrl: "https://app.hyperliquid-testnet.xyz/coins/ETH.svg",
   },
 
 };

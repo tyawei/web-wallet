@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { SAVELOCALKEY } from "./enum";
-import { saveEncryptoKeyInLocal } from "./tool";
+import { getWalletsFromLocal, saveEncryptoKeyInLocal } from "./tool";
 import { testnetConfigs } from "../config/test";
 
 type NetworkConfig = {
@@ -17,7 +17,7 @@ interface WalletInfo {
   // privateKey?: string;
   [key: string]: any;
 }
-const { KEY, ADDRESS } = SAVELOCALKEY;
+const { KEY, LASTLOGIN, ADDRESS, } = SAVELOCALKEY;
 
 export default class WalletManager {
   private static instance: WalletManager;
@@ -25,8 +25,33 @@ export default class WalletManager {
   private walletInfo: any;
   private provider: any;
   private curNetwork: string;
+  private lastLoginWallet: any;
 
-  private constructor() {}
+  private constructor() {
+    // 刷新页面时，如果已登录过的钱包上次登录时间，距离此刻最短，那么就用那个钱包地址作为当前登录钱包
+    this.setLastLoginWallet()
+  }
+
+  setLastLoginWallet(address?: string) {
+    if (address) {
+      // 更新一下最新登录钱包的时间
+      this.lastLoginWallet = saveEncryptoKeyInLocal(address)
+      return this.lastLoginWallet
+    }
+    const now = Date.now()
+    const list = getWalletsFromLocal()
+    if (!list || !list.length) return;
+    let minTime = now - list[0][LASTLOGIN]
+    let minIdx = 0
+    list?.map((itm, idx) => {
+      if (now - itm[LASTLOGIN] <= minTime) {
+        minTime = now - itm[LASTLOGIN]
+        minIdx = idx
+      }
+    })
+    this.lastLoginWallet = list[minIdx]  
+    return this.lastLoginWallet
+  }
 
   // 之前发现在login 和 registry 组件无法获取到已经设置过的wallet walletInfo 对象
   // 想半天才想起来必须单例
@@ -100,7 +125,10 @@ export default class WalletManager {
           encryptKeyList[i][KEY],
           password
         );
-        if (wallet) break;
+        if (wallet) {
+          encryptKeyList[i][LASTLOGIN] = Date.now()
+          break;
+        }
       } catch (e) {
         console.log("ee===", e);
         // 这里需要继续，否则捕获到错误后，wallet就会返回空，提示解密不成功
@@ -123,7 +151,8 @@ export default class WalletManager {
     });
 
     // 如果是结合备份的加密私钥文件找回钱包，需要重新保存在本地
-    recoverWalletFromBackUp && localStorage.setItem(KEY, encryptoKey);
+    // recoverWalletFromBackUp && localStorage.setItem(KEY, JSON.stringify(encryptKeyList));
+    localStorage.setItem(KEY, JSON.stringify(encryptKeyList));
 
     return wallet;
   }
@@ -172,8 +201,8 @@ export default class WalletManager {
   }
 
   async getBalance(address: string) {
-    if (this.provider && (address || this.wallet.address)) {
-      const balance = await this.provider.getBalance(address || this.wallet.address);
+    if (this.provider && this.provider.getBalance && (address || this.wallet?.address || this.lastLoginWallet?.address)) {
+      const balance = await this.provider.getBalance(address || this.wallet?.address || this.lastLoginWallet?.address);
       return ethers.formatEther(balance);
     }
     return "0.0";

@@ -29,8 +29,10 @@ interface Addr {
 }
 
 export default function WalletHome() {
+  const walletManager = WalletManager.getInstance()
+  const lastLoginWallet = walletManager.setLastLoginWallet()
   const [walletList, setWalletList] = useState<Array<Addr>>([])
-  const [curWalletInfo, setCurWalletInfo] = useState<Addr>({} as Addr)
+  const [curWalletDetail, setCurWalletDetail] = useState<any>({})
   const [balance, setBalance] = useState("")
   const [receiveAddr, setReceiveAddr] = useState("")
   const [sendAmount, setSendAmount] = useState("")
@@ -39,8 +41,11 @@ export default function WalletHome() {
 
   const { copy } = useCopy();
   const { isOpen, onClose, onOpen } = useDisclosure()
+  
+  const curWalletInfo = useMemo(() => {
+    return curWalletDetail || lastLoginWallet
+  }, [curWalletDetail, lastLoginWallet])
 
-  const walletManager = WalletManager.getInstance()
   // 当前最先登录过的钱包，和其他钱包区分开 ，当切换到其他钱包并即将交易时，用来判断是否输入密码
   const curAddress = walletManager.getWalletInfo()?.address
   // 0xe3ff...23neik格式
@@ -49,11 +54,12 @@ export default function WalletHome() {
       preDigits: 6,
       endDigits: 6,
     })
-  }, [curWalletInfo.address])
+  }, [curWalletInfo?.address])
   // 钱包名称
+
   const curWallet = useMemo(() => {
     return curWalletInfo?.wallet
-  }, [curWalletInfo.address, curWalletInfo.wallet])  
+  }, [curWalletInfo?.wallet])  
 
   useEffect(() => {
     const walletList = getWalletsFromLocal();
@@ -61,7 +67,7 @@ export default function WalletHome() {
     setWalletList(walletList);
 
     const curWallet = walletList.filter((item: Addr) => item.address === curAddress) 
-    setCurWalletInfo(curWallet[0])
+    setCurWalletDetail(curWallet[0])
   }, [])
 
   // 连接钱包并获取余额
@@ -70,11 +76,11 @@ export default function WalletHome() {
       // 默认sepolia参数
       await walletManager.connectToTestnet()
 
-      const balance = await walletManager.getBalance(curWalletInfo.address)
+      const balance = await walletManager.getBalance(curWalletInfo?.address)
       setBalance(balance)
     }
     connectAndBalance()
-  }, [curWalletInfo.address]);
+  }, [curWalletInfo?.address]);
 
   const copyAddress = (address: string | undefined) => {
     if (address) {
@@ -138,9 +144,12 @@ export default function WalletHome() {
 
   const selectWallet = (address: string) => {
     const curWallet = walletList.filter((item: Addr) => item.address === address) 
-    setCurWalletInfo(curWallet[0])
+    walletManager.setLastLoginWallet(address)
+    setCurWalletDetail(curWallet[0])
     setIsShow(false)
   }
+
+  if (typeof window === 'undefined') return null;
 
   return (
     <Container>
@@ -201,7 +210,7 @@ export default function WalletHome() {
       <Modal isOpen={isShow} onClose={() => setIsShow(false)} headerTitle="选择钱包" containerStyle={{width: "500px", height: "300px"}}>
       {walletList.length? walletList.map(({address, wallet}) => (
         <Flex key={address} cursor={"pointer"} justifyContent={"center"}
-              bgColor={address === curWalletInfo.address ? "#eee" : "none"}
+              bgColor={address === curWalletInfo?.address ? "#eee" : "none"}
               borderRadius="6px"
               onClick={() => selectWallet(address)}
               >

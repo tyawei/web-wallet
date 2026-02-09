@@ -8,4 +8,5 @@ export enum SAVELOCALKEY {
     KEY = "encryptoKey",
     ADDRESS = "address",
     WALLETNAME = "wallet",
+    LASTLOGIN = "lastLogin"
 }

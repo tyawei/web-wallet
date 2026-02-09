@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^2.8.2",
+    "@walletconnect/client": "^1.8.0",
     "ethers": "^6.15.0",
     "next": "16.0.3",
     "react": "19.2.0",

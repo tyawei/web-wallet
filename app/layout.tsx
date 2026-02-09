@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ChakraProvider } from "@chakra-ui/react";
+import WalletConnect from "@walletconnect/client";
+import { useEffect } from "react";
 // import "tailwindcss/tailwind.css"
 
 const geistSans = Geist({
